@@ -55,19 +55,50 @@ class Query(object):
         return Ingredient.objects.select_related('category').all()
 
 
-"""  """
+""" Mutations """
 
 
-class CategoryMutation(graphene.Mutation):
+class IngredientData(graphene.InputObjectType):
+    name = graphene.String(required=True)
+    notes = graphene.String()
+
+
+class CreateCategory(graphene.Mutation):
+    """ Creat category """
     class Arguments:
+        name = graphene.String(required=True)
+        ingredients_list = graphene.List(IngredientData)
+
+    category = graphene.Field(CategoryType)
+
+    def mutate(self, info, name, ingredients_list=None):
+        obj = Category.objects.create(name=name)
+        if ingredients_list is not None:
+            for data in ingredients_list:
+                obj_sub = Ingredient.objects.create(
+                    name=data.name, notes=data.notes, category=obj)
+        return CreateCategory(category=obj)
+
+
+class UpdateCategory(graphene.Mutation):
+    """ Update category """
+    class Arguments:
+        id = graphene.Int()
         name = graphene.String()
 
     category = graphene.Field(CategoryType)
 
-    def mutate(root, info, name):
-        category = Category.objects.create(name=name)
-        return CategoryMutation(category=category)
+    def mutate(self, info, id, name):
+        obj = Category.objects.create(name=name)
+        try:
+            obj = Category.objects.get(id=id)
+            obj.name = name
+            obj.save()
+            return UpdateCategory(category=obj)
+        except Exception:
+            return None
 
 
 class Mutation(ObjectType):
-    create_category = CategoryMutation.Field()
+    create_category = CreateCategory.Field()
+    update_category = UpdateCategory.Field()
